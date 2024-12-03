@@ -4,6 +4,7 @@ import numpy as np
 from collections import OrderedDict
 import torchvision.transforms as transforms
 from PIL import Image
+import os
 
 from .schp import networks
 from .schp.utils.transforms import transform_logits, get_affine_transform
@@ -79,6 +80,8 @@ def generate(image, type, device):
     model_path = 'models/schp/exp-schp-201908270938-pascal-person-part.pth'
 
   model = networks.init_model('resnet101', num_classes=num_classes, pretrained=None)
+  if not os.path.exists(model_path) and os.path.exists(f'/stable-diffusion-cache/{model_path}'):
+    model_path = f'/stable-diffusion-cache/{model_path}'
   state_dict = torch.load(model_path)['state_dict']
   new_state_dict = OrderedDict()
   for k, v in state_dict.items():
