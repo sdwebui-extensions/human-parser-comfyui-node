@@ -8,23 +8,28 @@ from torch.utils.cpp_extension import load
 
 _src_path = path.join(path.dirname(path.abspath(__file__)), "src")
 
-if torch.cuda.is_available():
-    _backend = load(name="inplace_abn",
-                    extra_cflags=["-O3"],
-                    sources=[path.join(_src_path, f) for f in [
-                        "inplace_abn.cpp",
-                        "inplace_abn_cpu.cpp",
-                        "inplace_abn_cuda.cu",
-                        "inplace_abn_cuda_half.cu"
-                    ]],
-                    extra_cuda_cflags=["--expt-extended-lambda"])
-else:
-    _backend = load(name="inplace_abn",
-                    extra_cflags=["-O3"],
-                    sources=[path.join(_src_path, f) for f in [
-                        "inplace_abn_cpu_only.cpp",
-                        "inplace_abn_cpu.cpp"
-                    ]])
+_backend = None
+
+def get_backend():
+    global _backend
+    if _backend is None:
+        if torch.cuda.is_available():
+            _backend = load(name="inplace_abn",
+                            extra_cflags=["-O3"],
+                            sources=[path.join(_src_path, f) for f in [
+                                "inplace_abn.cpp",
+                                "inplace_abn_cpu.cpp",
+                                "inplace_abn_cuda.cu",
+                                "inplace_abn_cuda_half.cu"
+                            ]],
+                            extra_cuda_cflags=["--expt-extended-lambda"])
+        else:
+            _backend = load(name="inplace_abn",
+                            extra_cflags=["-O3"],
+                            sources=[path.join(_src_path, f) for f in [
+                                "inplace_abn_cpu_only.cpp",
+                                "inplace_abn_cpu.cpp"
+                            ]])
 
 # Activation names
 ACT_RELU = "relu"
@@ -66,6 +71,7 @@ def _count_samples(x):
 
 
 def _act_forward(ctx, x):
+    get_backend()
     if ctx.activation == ACT_LEAKY_RELU:
         _backend.leaky_relu_forward(x, ctx.slope)
     elif ctx.activation == ACT_ELU:
@@ -75,6 +81,7 @@ def _act_forward(ctx, x):
 
 
 def _act_backward(ctx, x, dx):
+    get_backend()
     if ctx.activation == ACT_LEAKY_RELU:
         _backend.leaky_relu_backward(x, dx, ctx.slope)
     elif ctx.activation == ACT_ELU:
@@ -87,6 +94,7 @@ class InPlaceABN(autograd.Function):
     @staticmethod
     def forward(ctx, x, weight, bias, running_mean, running_var,
                 training=True, momentum=0.1, eps=1e-05, activation=ACT_LEAKY_RELU, slope=0.01):
+        get_backend()
         # Save context
         ctx.training = training
         ctx.momentum = momentum
@@ -127,6 +135,7 @@ class InPlaceABN(autograd.Function):
     @staticmethod
     @once_differentiable
     def backward(ctx, dz, _drunning_mean, _drunning_var):
+        get_backend()
         z, var, weight, bias = ctx.saved_tensors
         dz = dz.contiguous()
 
@@ -155,6 +164,7 @@ class InPlaceABNSync(autograd.Function):
     def forward(cls, ctx, x, weight, bias, running_mean, running_var,
                 training=True, momentum=0.1, eps=1e-05, activation=ACT_LEAKY_RELU, slope=0.01, equal_batches=True):
         # Save context
+        get_backend()
         ctx.training = training
         ctx.momentum = momentum
         ctx.eps = eps
@@ -216,6 +226,7 @@ class InPlaceABNSync(autograd.Function):
     @staticmethod
     @once_differentiable
     def backward(ctx, dz, _drunning_mean, _drunning_var):
+        get_backend()
         z, var, weight, bias = ctx.saved_tensors
         dz = dz.contiguous()
 
