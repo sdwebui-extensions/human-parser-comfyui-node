@@ -7,8 +7,6 @@ try:
 except ImportError:
     from Queue import Queue
 
-from .functions import *
-
 
 class ABN(nn.Module):
     """Activated Batch Normalization
@@ -59,6 +57,7 @@ class ABN(nn.Module):
             nn.init.constant_(self.bias, 0)
 
     def forward(self, x):
+        from .functions import ACT_ELU, ACT_LEAKY_RELU, ACT_RELU
         x = functional.batch_norm(x, self.running_mean, self.running_var, self.weight, self.bias,
                                   self.training, self.momentum, self.eps)
 
@@ -105,6 +104,7 @@ class InPlaceABN(ABN):
         super(InPlaceABN, self).__init__(num_features, eps, momentum, affine, activation, slope)
 
     def forward(self, x):
+        from .functions import inplace_abn
         x, _, _ = inplace_abn(x, self.weight, self.bias, self.running_mean, self.running_var,
                            self.training, self.momentum, self.eps, self.activation, self.slope)
         return x
@@ -116,6 +116,7 @@ class InPlaceABNSync(ABN):
     """
 
     def forward(self, x):
+        from .functions import inplace_abn_sync
         x, _, _ =  inplace_abn_sync(x, self.weight, self.bias, self.running_mean, self.running_var,
                                    self.training, self.momentum, self.eps, self.activation, self.slope)
         return x
