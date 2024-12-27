@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 import torch.nn as nn
 
-from .bn import ABN, ACT_LEAKY_RELU, ACT_ELU, ACT_NONE
+from .bn import ABN
 import torch.nn.functional as functional
 
 
@@ -48,6 +48,7 @@ class ResidualBlock(nn.Module):
 
         is_bottleneck = len(channels) == 3
         need_proj_conv = stride != 1 or in_channels != channels[-1]
+        from .functions import ACT_NONE
 
         if not is_bottleneck:
             bn2 = norm_act(channels[1])
@@ -84,6 +85,7 @@ class ResidualBlock(nn.Module):
             self.proj_bn.activation = ACT_NONE
 
     def forward(self, x):
+        from .functions import ACT_LEAKY_RELU, ACT_ELU
         if hasattr(self, "proj_conv"):
             residual = self.proj_conv(x)
             residual = self.proj_bn(residual)
